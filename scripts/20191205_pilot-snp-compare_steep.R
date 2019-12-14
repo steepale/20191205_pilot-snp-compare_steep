@@ -33,7 +33,7 @@ setwd(WD)
 #install.packages("ade4")
 
 # Load dependencies
-pacs...man <- c("tidyverse","data.table","R.utils","ggpubr","plyr","readxl", "GenomicRanges","BSgenome","BSgenome.Ggallus.UCSC.galGal4","BSgenome.Ggallus.UCSC.galGal5","rtracklayer")
+pacs...man <- c("tidyverse","data.table","R.utils","ggpubr","plyr","readxl", "GenomicRanges","BSgenome","BSgenome.Ggallus.UCSC.galGal4","BSgenome.Ggallus.UCSC.galGal5","rtracklayer","ff","Rsamtools")
 lapply(pacs...man, FUN = function(X) {
         do.call("library", list(X)) 
 })
@@ -82,36 +82,61 @@ cat_mode <- function(x) {
 
 # Function to load germline vcfs
 ################################################################################
-load_normal_vcfs <- function(x) {
+load_normal_vcfs <- function(x, extract_gt = TRUE) {
         # Ensure 'x' is a string
         if ( class(x) != "character" ) {
                 stop("'x' must be a string", class.= FALSE)
         }
-        # Assign the vcf file
-        ND <- "/Users/Alec/Documents/Bioinformatics/MDV_Project/germline_snps_indels/data/germline_snps/indv_samples/parents"
-        vcf.gz <- paste0(ND,'/',x,'_normals_recal_famprioirs_gfiltered_denovo_germline_99.9.g.vcf.gz')
-        vcf <- paste0(ND,'/',x,'_normals_recal_famprioirs_gfiltered_denovo_germline_99.9.g.vcf')
-        # Gunzip the file
-        gunzip(vcf.gz)
+        
+        # Gunzip the file if necessary
+        if (endsWith(x, '.gz')) {
+                compressed <- TRUE
+        }else{
+                compressed <- FALSE 
+        }
+        
+        if (compressed) {
+                # Determine the number of lines to skip (with ##)
+                system_cmd <- paste0('bgzip -d -c ',x,' | grep "^##" | wc -l')
+                n_skip <- system(system_cmd, intern = TRUE) %>% as.numeric()
+                # Determine the columns
+                system_cmd <- paste0('bgzip -d -c ',x,' | grep "^#CHROM" | tr "\t" "\n" | wc -l')
+                col_n <- system(system_cmd, intern = TRUE) %>% as.numeric()
+        }else{
+                # Determine the number of lines to skip (with ##)
+                system_cmd <- paste0('grep "^##" ',x,'| wc -l')
+                n_skip <- system(system_cmd, intern = TRUE) %>% as.numeric()
+                # Determine the columns
+                system_cmd <- paste0('grep "^#CHROM" ,',x,'| tr "\t" "\n" | wc -l')
+                col_n <- system(system_cmd, intern = TRUE) %>% as.numeric()
+        }
+        
+        # Detemrine the column class for file loading
+        col_class <- c("factor", "integer",rep("factor",3),"double",rep("factor", (col_n - 6) ))
+        
         # Load vcf data
-        PL <- read.table(file = vcf, comment.char = "", check.names = FALSE, header = TRUE, sep = '\t')
-        PL <- as_tibble(PL)
+        #PL <- read.table(file = x, comment.char = '', skip = n_skip, check.names = FALSE, header = TRUE, sep = '\t') %>% as_tibble()
+        PL <- read.table.ffdf(file = x, sep = '\t', skip=n_skip,header=TRUE,
+                        colClasses=col_class, VERBOSE = TRUE, first.rows = 100000 ) %>% as_tibble()
+        
         # Adjust col name
         colnames(PL)[1] <- 'CHROM'
         SAMPLE <- colnames(PL)[10]
-        # gzip the file
-        gzip(vcf)
         
-        # Extract the genotype information from the last column
-        PL <- PL %>% separate(SAMPLE, c("GT", NA), sep = ':')
-        # Select the columns of interest
-        PL <- PL %>% dplyr::select(CHROM, POS, REF, ALT,GT)
-        
-        # Rename the allele columns
-        colnames(PL)[5] <- paste0("GT")
+        # Extract the genotypes if choosen
+        if (extract_gt){
+                # Extract the genotype information from the last column
+                PL <- PL %>% separate(SAMPLE, c("GT", NA), sep = ':')
+                # Select the columns of interest
+                PL <- PL %>% dplyr::select(CHROM, POS, REF, ALT,GT)
+                # Rename the allele columns
+                colnames(PL)[5] <- paste0("GT")
+                # Make GT factor
+                PL$GT <- as.factor(PL$GT)
+        }
         
         # Return the output
-        as_tibble(PL)
+        PL
 }
 ################################################################################
 
@@ -210,12 +235,14 @@ head(ark_df)
 str(ark_df)
 summary(ark_df)
 
-# Load in Line 6 and Line 7 Data
+# Load in Line 6 and Line 7 Data (this takes about 4-5 minutes per file, loads ~1 million lines per minute)
 ######################
-L6_df <- load_normal_vcfs('002683_Line-6')
-L7_df <- load_normal_vcfs('002684_Line-7')
+L6_file <- './data/002683_Line-6_hard_filtered_snps_lenient_vep.vcf.gz'
+L7_file <- './data/002684_Line-7_hard_filtered_snps_lenient_vep.vcf.gz'
+L6_df <- load_normal_vcfs(L6_file, extract_gt = TRUE)
+L7_df <- load_normal_vcfs(L7_file, extract_gt = TRUE)
 
-# Rename the all columns
+# Broadcast columns
 L6_df$LINE <- "LINE_6"
 L7_df$LINE <- "LINE_7"
 
