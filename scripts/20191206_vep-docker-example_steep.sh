@@ -1,15 +1,20 @@
 # Login to docker
 docker login
 
+# COllect the working directory; adjust this variabel to your working directory
+WD='/Users/Alec/Documents/Bioinformatics/germplasm_collab/20191205_pilot-snp-compare_steep'
+
 # Run the docker image as a container
 docker run -it \
--v /Users/Alec/Documents/Bioinformatics/germplasm_collab/20191205_pilot-snp-compare_steep:/Users/Alec/Documents/Bioinformatics/germplasm_collab/20191205_pilot-snp-compare_steep \
+-v ${WD}:${WD} \
 --rm --name vep_r steepale/20191205_vep-galgal5-r_steep:release_92
 
 # Make sure VEP is in PATH
 
 # Change to working directory
-cd /Users/Alec/Documents/Bioinformatics/germplasm_collab/20191205_pilot-snp-compare_steep
+cd ${WD}
+
+# Note: This script does not work right now, it requires rerunning of prior scripts (cannot input vep annotated vcfs to these scripts)
 
 # Run VEP
 vep \

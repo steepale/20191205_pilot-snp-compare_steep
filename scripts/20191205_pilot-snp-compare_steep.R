@@ -107,7 +107,7 @@ load_normal_vcfs <- function(x, extract_gt = TRUE) {
                 system_cmd <- paste0('grep "^##" ',x,'| wc -l')
                 n_skip <- system(system_cmd, intern = TRUE) %>% as.numeric()
                 # Determine the columns
-                system_cmd <- paste0('grep "^#CHROM" ,',x,'| tr "\t" "\n" | wc -l')
+                system_cmd <- paste0('grep "^#CHROM" ',x,'| tr "\t" "\n" | wc -l')
                 col_n <- system(system_cmd, intern = TRUE) %>% as.numeric()
         }
         
@@ -137,32 +137,6 @@ load_normal_vcfs <- function(x, extract_gt = TRUE) {
         
         # Return the output
         PL
-}
-################################################################################
-
-# Function to load germline vcfs (total)
-################################################################################
-load_total_vcf <- function(x) {
-        # Ensure 'x' is a string
-        if ( class(x) != "character" ) {
-                stop("'x' must be a string", class.= FALSE)
-        }
-        # Assign the vcf file
-        ND <- "/Users/Alec/Documents/Bioinformatics/MDV_Project/germline_snps_indels/data/germline_snps/indv_samples/parents"
-        vcf.gz <- paste0(ND,'/',x,'_normals_recal_famprioirs_gfiltered_denovo_germline_99.9.g.vcf.gz')
-        vcf <- paste0(ND,'/',x,'_normals_recal_famprioirs_gfiltered_denovo_germline_99.9.g.vcf')
-        # Gunzip the file
-        gunzip(vcf.gz)
-        # Load vcf data
-        PL <- read.table(file = vcf, comment.char = "", check.names = FALSE, header = TRUE, sep = '\t')
-        PL <- as_tibble(PL)
-        # Adjust col name
-        colnames(PL)[1] <- 'CHROM'
-        SAMPLE <- colnames(PL)[10]
-        # gzip the file
-        gzip(vcf)
-        # Return the output
-        as_tibble(PL)
 }
 ################################################################################
 
@@ -246,19 +220,18 @@ L7_df <- load_normal_vcfs(L7_file, extract_gt = TRUE)
 L6_df$LINE <- "LINE_6"
 L7_df$LINE <- "LINE_7"
 
-# Perform a full-join
+# Perform a full-join (not oo long)
 L6L7 <- full_join(L6_df, L7_df, by = c("CHROM","POS","REF","ALT","GT","LINE"), copy = TRUE, suffix = c(".x", ".y"))
 
-# Remove heavy memory objects
-rm(L6_df)
-rm(L7_df)
+# To examine genotype distributions
+#table(L6L7$GT) %>% sort()
 
 # Perform one-hot encoding of the LINE categorical variable: 
 # L6L7 <- L6L7 %>% mutate(value = 1)  %>% spread(LINE, value,  fill = 0 )
 L6L7 <- L6L7  %>% mutate(value = case_when(GT == "0/0" ~ 0, 
                                                GT == "0/1" ~ 0.5,
                                                GT == "1/1" ~ 1,
-                                               GT == "1/2" ~ 1))  %>% 
+                                               GT == "1/2" ~ 1.5))  %>% 
         spread(LINE, value,  fill = 0 )
 
 # Ensure unique
@@ -269,6 +242,27 @@ dim(L6L7)
 head(L6L7)
 str(L6L7)
 summary(L6L7)
+
+# Line 6 and 7 stats (homo and hetero)
+for(line in c('LINE_6', 'LINE_7')){
+        print(line)
+        n_v <- L6L7 %>% nrow() # Variants measured
+        n_gg5 <- 1230258557 # sites in the genome
+        v_AA <- L6L7[ (L6L7[[line]] == 0 | (L6L7[[line]] == 1)) ,]  %>% nrow() # homozygous variants
+        v_AB <- L6L7[ (L6L7[[line]] == 0.5 | (L6L7[[line]] == 1.5)) ,]  %>% nrow() # heterozygous variants
+        # Frequency of homozygosity
+        print(paste0('Frequency of homozygous variants: ',v_AA/n_v))
+        # Frequency of heterozygosity
+        print(paste0('Frequency of heterozygous variants: ',v_AB/n_v))
+        # Frequency of homozygosity
+        print(paste0('Frequency of homozygosity (across genome): ',(n_gg5 - v_AB)/n_gg5))
+        # Frequency of heterozygosity
+        print(paste0('Frequency of heterozygosity (across genome): ',v_AB/n_gg5))
+}
+
+# Remove large items
+rm(L6_df)
+rm(L7_df)
 
 #' ## Perform liftover from Galgal4 to Galgal5 on Arkansas SNPs
 #'
@@ -324,6 +318,9 @@ ark_df <- ark_df %>% unique()
 # Dimensions
 dim(ark_df)
 
+# Remove memory object
+rm(GG4to5_chain)
+
 #' ## Perform an inner join to determine if any of the snps are shared across datasets
 #'
 #+ Inner join (Lines 6&7 and Arkansas)
@@ -338,11 +335,7 @@ ark_df$CHROM <- str_remove_all(ark_df$CHROM, 'chr')
 # Perform an inner join
 L67RP <- inner_join(L6L7, ark_df, by = c('CHROM','POS','REF'), copy = FALSE, suffix = c(".x", ".y"))
 
-# Remove the large memory object
-rm(L6L7)
-
 # Adjust columns (.x, .y) *TODO: Generate dplyr-friendly function
-
 # Generate NA values for rows that contain similar ALT and GT values
 
 #ALT
@@ -361,6 +354,9 @@ L67RP <- L67RP %>% filter(!is.na(ALT)) %>%
         dplyr::select(-ALT.x, -ALT.y)
 
 #GT
+# Need to adjust characters
+L67RP$GT.x <- as.character(L67RP$GT.x)
+L67RP$GT.y <- as.character(L67RP$GT.y)
 # Iterate through the rows and combine and add columns depending on context
 L67RP <- L67RP %>% mutate(GT = ifelse(GT.x == GT.y, GT.x, NA))
 # Create duplicate dataframe with differing GT values
@@ -372,14 +368,10 @@ df.y <- df.y %>% mutate(GT = GT.y)
 # Combine the dataframes and adjust
 L67RP <- L67RP %>% filter(!is.na(GT)) %>% 
         bind_rows(df.x,df.y) %>% 
-        dplyr::select(-GT.x, -GT.y)
+        dplyr::select(-GT.x, -GT.y) %>% unique() # Remove any duplicate values
 
 # Reorder the dataframe
 L67RP <- L67RP %>% dplyr::select(CHROM,POS,REF,ALT,GT,LINE_6,LINE_7,REG,PRO)
-
-# Remove any duplicate values
-L67RP <- L67RP %>% unique()
-dim(L67RP)
 
 # Save the data to file
 write.table(L67RP, file = paste0('./data/',date,'_L67RP_',auth,'.txt'),
@@ -387,10 +379,10 @@ write.table(L67RP, file = paste0('./data/',date,'_L67RP_',auth,'.txt'),
 
 # Extract SNPs from VCF format
 
-# Load in Line 6 and Line 7 Data
+# Load in Line 6 and Line 7 Data (if not already loaded)
 ######################
-L6_df <- load_total_vcf('002683_Line-6')
-L7_df <- load_total_vcf('002684_Line-7')
+L6_df <- load_normal_vcfs(L6_file, extract_gt = FALSE)
+L7_df <- load_normal_vcfs(L7_file, extract_gt = FALSE)
 
 # Line 6
 ###########################
@@ -399,10 +391,17 @@ L6_vcf <- semi_join(L6_df, L67RP, by =c('CHROM','POS','REF','ALT'))
 
 # Adjust the column names
 colnames(L6_vcf)[1] <- '#CHROM'
+if( startsWith(colnames(L6_vcf)[10],'X') ){
+        C <- colnames(L6_vcf)[10] %>% as.vector()
+        colnames(L6_vcf)[10] <- str_sub(C,2,str_length(C))
+}
 
 # Write the VCF file
-write.table(L6_vcf, file = paste0('./data/',date,'_L6-ARK_',auth,'.vcf'),
+write.table(L6_vcf, file = paste0('./data/',date,'_L6-ARK-vep_',auth,'.vcf'),
             quote = FALSE, sep= "\t", row.names = FALSE)
+
+# Remove large memory object
+rm(L6_df)
 
 # Line 7
 ############################
@@ -412,10 +411,20 @@ L7_vcf <- semi_join(L7_df, L67RP, by =c('CHROM','POS','REF','ALT'))
 
 # Adjust the column names
 colnames(L7_vcf)[1] <- '#CHROM'
+if( startsWith(colnames(L7_vcf)[10],'X') ){
+        C <- colnames(L7_vcf)[10] %>% as.vector()
+        colnames(L7_vcf)[10] <- str_sub(C,2,str_length(C))
+}
 
 # Write the VCF file
-write.table(L7_vcf, file = paste0('./data/',date,'_L7-ARK_',auth,'.vcf'),
+write.table(L7_vcf, file = paste0('./data/',date,'_L7-ARK-vep_',auth,'.vcf'),
             quote = FALSE, sep= "\t", row.names = FALSE)
+
+# Remove large memory object
+rm(L7_df)
+# Remove the large memory object
+rm(L6L7)
+rm(PL)
 
 #' ## Biology: What Genes are Mutated and What is Predicted Consequence?
 #'
@@ -425,10 +434,11 @@ write.table(L7_vcf, file = paste0('./data/',date,'_L7-ARK_',auth,'.vcf'),
 #####     VEP Annotation      ##################################################
 ################################################################################
 
+# Update: VEP annotation was already performed as so this script is unneccessary. However, included for future use.
+
 # Load a docker image with the appropriate VEP release (92) and the galgal5 annotation information
 
 # VEP Annotation performed in: "./scripts/20191206_vep-docker-example_steep.sh"
-
 
 #' ## Load and Join VEP Annotations
 #'
@@ -442,9 +452,10 @@ write.table(L7_vcf, file = paste0('./data/',date,'_L7-ARK_',auth,'.vcf'),
 #####################
 
 # Load the VEP annotations
-L6_file <- './data/20191208_L6-ARK-vep_steep.vcf'
-L6 <- read.table(L6_file, sep = '\t', header = TRUE, skip = 2, comment.char = '', 
-                 check.names = FALSE) %>% as_tibble()
+sys_cmd <- paste0('ls -1 ./data/*_L6-ARK-vep_steep.vcf | sort -r | head -n1')
+L6_file <- system(sys_cmd, intern = TRUE)
+L6 <- load_normal_vcfs(L6_file, extract_gt = FALSE)
+
 # Rename columns
 names(L6)[1] <- 'CHROM'
 names(L6)[10] <- 'SAMPLE'
@@ -470,14 +481,14 @@ L6 <- L6 %>% dplyr::select(CHROM,POS,REF,ALT,STRAND,CONSEQUENCE,IMPACT,SYMBOL,SI
 # Unique rows
 L6 <- L6 %>% unique()
 
-
 # Line 7
 #####################
 
 # Load the VEP annotations
-L7_file <- './data/20191208_L7-ARK-vep_steep.vcf'
-L7 <- read.table(L7_file, sep = '\t', header = TRUE, skip = 2, comment.char = '', 
-                 check.names = FALSE) %>% as_tibble()
+sys_cmd <- paste0('ls -1 ./data/*_L7-ARK-vep_steep.vcf | sort -r | head -n1')
+L7_file <- system(sys_cmd, intern = TRUE)
+L7 <- load_normal_vcfs(L7_file, extract_gt = FALSE)
+
 # Rename columns
 names(L7)[1] <- 'CHROM'
 names(L7)[10] <- 'SAMPLE'
@@ -497,9 +508,6 @@ L7 <- L7 %>% separate(CONSEQUENCE, c("ALLELE", "CONSEQUENCE","IMPACT","SYMBOL","
 # Select the columns of interest
 L7 <- L7 %>% dplyr::select(CHROM,POS,REF,ALT,STRAND,CONSEQUENCE,IMPACT,SYMBOL,SIFT)
 
-# Rename the all columns
-#L7$LINE <- "LINE_7"
-
 # Unique rows
 L7 <- L7 %>% unique()
 
@@ -514,54 +522,6 @@ L67RP_anne <- left_join(L6L7, L67RP, by = c('CHROM','POS','REF','ALT'))
 
 # Save the data to file and for subsequent analyses
 write.table(L67RP_anne, file = paste0('./data/',date,'_L67RP-annotations-quantitative_',auth,'.txt'), quote = FALSE, sep= "\t", row.names = FALSE)
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Collect SNPs found only in L6 and R
-L6R <- L67RP_anne %>% filter(
-                (LINE_6 == 1 & REG == 1 & LINE_7 == 0 & PRO == 0)
-        )
-table(L6R$SYMBOL) %>% sort() %>% names()
-
-L6R %>% filter(IMPACT %!in% c('MODIFIER','LOW'))
-
-
-res <- L67RP_anne %>% filter( (SYMBOL == 'DNAH1') & 
-                              ( IMPACT %!in% c('MODIFIER','LOW') ))
-res %>% filter(!str_detect(SIFT,'tolerated'))
-?str_detect
-table(L67RP_anne$SYMBOL) %>% sort()
-
-
-
-################################################################################
-#####     Determine Genotype Similarity      ###################################
-################################################################################
-
-# Extract data frame of interest
-#F1_df <- df %>% dplyr::select(PROBE_SET_ID,CHR,POS,AFFY_SNP_ID,F1_1, F1_2, F1_3, F1_4, F1_5, F1_6)
-
-# Generate rows for number and percent similarity between columns
-# Note: Row-oriented work is difficult in R--https://resources.rstudio.com/webinars/thinking-inside-the-box-you-can-do-that-inside-a-data-frame-april-jenny-bryan
-
-F1_df <- df %>% dplyr::select(F1_1, F1_2, F1_3, F1_4, F1_5, F1_6)
-
-# Convert rows into lists (20 seconds)
-row_list <- F1_df %>% purrr::pmap(list)
-# Count the genotypes (4 minutes)
-F1_df$GENO_FREQ <- lapply(row_list,count_genos) %>% unlist()
-# Calculate the percentage of similarity
-F1_df %>% filter(GENO_FREQ < 1)
 
 
 
