@@ -211,8 +211,8 @@ summary(ark_df)
 
 # Load in Line 6 and Line 7 Data (this takes about 4-5 minutes per file, loads ~1 million lines per minute)
 ######################
-L6_file <- './data/002683_Line-6_hard_filtered_snps_lenient_vep.vcf.gz'
-L7_file <- './data/002684_Line-7_hard_filtered_snps_lenient_vep.vcf.gz'
+L6_file <- './data/002683_Line-6_hard_filtered_snps_lenient.g.vcf.gz'
+L7_file <- './data/002684_Line-7_hard_filtered_snps_lenient.g.vcf.gz'
 L6_df <- load_normal_vcfs(L6_file, extract_gt = TRUE)
 L7_df <- load_normal_vcfs(L7_file, extract_gt = TRUE)
 
@@ -397,7 +397,7 @@ if( startsWith(colnames(L6_vcf)[10],'X') ){
 }
 
 # Write the VCF file
-write.table(L6_vcf, file = paste0('./data/',date,'_L6-ARK-vep_',auth,'.vcf'),
+write.table(L6_vcf, file = paste0('./data/',date,'_L6-ARK_',auth,'.vcf'),
             quote = FALSE, sep= "\t", row.names = FALSE)
 
 # Remove large memory object
@@ -417,14 +417,13 @@ if( startsWith(colnames(L7_vcf)[10],'X') ){
 }
 
 # Write the VCF file
-write.table(L7_vcf, file = paste0('./data/',date,'_L7-ARK-vep_',auth,'.vcf'),
+write.table(L7_vcf, file = paste0('./data/',date,'_L7-ARK_',auth,'.vcf'),
             quote = FALSE, sep= "\t", row.names = FALSE)
 
 # Remove large memory object
 rm(L7_df)
 # Remove the large memory object
 rm(L6L7)
-rm(PL)
 
 #' ## Biology: What Genes are Mutated and What is Predicted Consequence?
 #'
@@ -433,8 +432,6 @@ rm(PL)
 ################################################################################
 #####     VEP Annotation      ##################################################
 ################################################################################
-
-# Update: VEP annotation was already performed as so this script is unneccessary. However, included for future use.
 
 # Load a docker image with the appropriate VEP release (92) and the galgal5 annotation information
 

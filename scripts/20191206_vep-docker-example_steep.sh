@@ -1,63 +1,52 @@
 # Login to docker
 docker login
 
-# COllect the working directory; adjust this variabel to your working directory
-WD='/Users/Alec/Documents/Bioinformatics/germplasm_collab/20191205_pilot-snp-compare_steep'
+WD=${PWD}
 
-# Run the docker image as a container
+# Run the docker image as a container (make sure to be in the working directory -- not ./data/ but one up from that)
 docker run -it \
--v ${WD}:${WD} \
+-v ${PWD}:${PWD} \
 --rm --name vep_r steepale/20191205_vep-galgal5-r_steep:release_92
 
 # Make sure VEP is in PATH
 
 # Change to working directory
+WD='/Users/Alec/Documents/Bioinformatics/germplasm_collab/20191205_pilot-snp-compare_steep' # Chnage this to the one you were in own (AKA PWD from before)
 cd ${WD}
 
 # Note: This script does not work right now, it requires rerunning of prior scripts (cannot input vep annotated vcfs to these scripts)
-
-# Run VEP
+# VEP annotation
+for vcf in `ls -1 ./data/*_L*-ARK_steep.vcf`
+do
+# Adjust the output string
+vcf_out=`echo ${vcf} | sed 's/-ARK/-ARK-vep/'`
+#Perform VEP annotation, base annotation with SIFT added
 vep \
--i ./data/20191208_L6-ARK_steep.vcf \
--o ./data/20191208_L6-ARK-vep_steep.vcf \
+-i ${vcf} \
+-o ${vcf_out} \
 --vcf \
 --cache \
 --offline \
 --species gallus_gallus \
 --force_overwrite \
 --sift b
+done
 
-# Run VEP
+for vcf in `ls -1 ./data/*_L*-ARK_steep.vcf`
+do
+# Adjust the output string
+vcf_out=`echo ${vcf} | sed 's/-ARK/-ARK-vep/'`
+#Perform VEP annotation, base annotation with SIFT added
 vep \
--i ./data/20191208_L7-ARK_steep.vcf \
--o ./data/20191208_L7-ARK-vep_steep.vcf \
+-i ${vcf} \
+-o ${vcf_out} \
 --vcf \
 --cache \
 --offline \
 --species gallus_gallus \
 --force_overwrite \
 --sift b
-
-# # Run VEP
-vep \
--i ./data/002684_Line-7_normals_recal_famprioirs_gfiltered_denovo_germline_99.9.g.vcf \
--o ./data/002684_Line-7_germline_99.9_vep.g.vcf \
---vcf \
---cache \
---offline \
---species gallus_gallus \
---force_overwrite \
---sift b
-
-vep \
--i ./data/002683_Line-6_normals_recal_famprioirs_gfiltered_denovo_germline_99.9.g.vcf.gz \
--o ./data/002683_Line-6_germline_99.9_vep.g.vcf \
---vcf \
---cache \
---offline \
---species gallus_gallus \
---force_overwrite \
---sift b
+done
 
 # Exit the docker image: files will be saved on your computer
 exit

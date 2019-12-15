@@ -1,1 +1,4 @@
 data/00268*_Line-*_hard_filtered_snps_lenient_vep.vcf.gz
+data/00268*_Line-*_hard_filtered_snps_lenient_vep.vcf
+data/*_hard_filtered_snps_lenient.g.vcf.gz
+data/*_hard_filtered_snps_lenient.g.vcf
