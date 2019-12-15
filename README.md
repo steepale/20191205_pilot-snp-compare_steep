@@ -15,6 +15,5 @@ The Progressor line demonstrates infertility while the regressor line demonstrat
         Checks the reference genome builds associated with each dataset. This analysis concluded that the Arkansas lines were in reference to galgal4 and the Michigan lines were in reference to galgal5.
     * 20191206_vep-docker-example_steep.sh (Requires docker or singularity)  
         Allows for VEP annotation for variants of interest. VEP is a complex software and it notorious for its difficult installation. These scripts allow for use of vep in nearly any computing environment with a docker image.
-* 20191209_pilot-snp-eda_steep.R  
-    * 20191209_pilot-snp-eda_steep.html  
+* 20191209_pilot-snp-eda_steep.R  & 20191209_pilot-snp-eda_steep.html  
     The start of the global analysis of genotypes across samples. Identifies the intersection of genotypes and illustrates PCA analysis. The html is a friendly way of visualizing thess data.
