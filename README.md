@@ -9,7 +9,7 @@ Line 6 and Line 7 were maintained at the Avian Disease and Oncology Lab in East 
 The Progressor line demonstrates infertility while the regressor line demonstrates fertility.
 
 # Order of analysis and explanation of scripts
-* 20191205_pilot-snp-compare_steep.R
+* 20191205_pilot-snp-compare_steep.R  
     The initial data wrangling script. This script feeds in large portions of data from different sources and formats the data for proper sorting. As this script lays the foundation for all analyses, this script should be held to the highest scrutiny and errors should be searched for; that being said, ample attention was paid to the construction of this script.
     * 20191205_snp-ref_steep.R
         Checks the reference genome builds associated with each dataset. This analysis concluded that the Arkansas lines were in reference to galgal4 and the Michigan lines were in reference to galgal5.
