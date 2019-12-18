@@ -22,3 +22,7 @@ The Progressor line demonstrates infertility while the regressor line demonstrat
 VEP generates global stats associated with annotated variants and puts them in a html file. Those files are:
 * `./data/20191214_L6-ARK-vep_steep.vcf_summary.html`
 * `./data/20191214_L7-ARK-vep_steep.vcf_summary.html`
+
+# TODOs:
+* Clean up mislabeled non-ref genos (1/2)
+* Make sure that genotype assignments and quantitative representations of those genotypes are equivalent across all rows
