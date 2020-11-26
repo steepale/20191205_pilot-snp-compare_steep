@@ -220,7 +220,7 @@ L7_df <- load_normal_vcfs(L7_file, extract_gt = TRUE)
 L6_df$LINE <- "LINE_6"
 L7_df$LINE <- "LINE_7"
 
-# Perform a full-join (not oo long)
+# Perform a full-join (not too long)
 L6L7 <- full_join(L6_df, L7_df, by = c("CHROM","POS","REF","ALT","GT","LINE"), copy = TRUE, suffix = c(".x", ".y"))
 
 # To examine genotype distributions

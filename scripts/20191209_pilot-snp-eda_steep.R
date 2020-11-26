@@ -25,7 +25,7 @@ knitr::opts_chunk$set(cache = FALSE)
 
 # Set the working directory
 WD <- '/Users/Alec/Documents/Bioinformatics/germplasm_collab/20191205_pilot-snp-compare_steep'
-#setwd(WD)
+setwd(WD)
 
 # Load the dependencies
 #source("https://bioconductor.org/biocLite.R")
@@ -37,10 +37,6 @@ pacs...man <- c("tidyverse","data.table","R.utils","ggpubr","plyr","readxl", "Ge
 lapply(pacs...man, FUN = function(X) {
         do.call("library", list(X)) 
 })
-
-############################################################
-##### Functions ############################################
-############################################################
 
 ############################################################
 ##### Functions ############################################
@@ -92,6 +88,22 @@ dim(L67RP_anne)
 head(L67RP_anne)
 str(L67RP_anne)
 summary(L67RP_anne)
+
+# Adjust factors
+L67RP_anne$LINE_6 <- as.factor(L67RP_anne$LINE_6)
+L67RP_anne$LINE_7 <- as.factor(L67RP_anne$LINE_7)
+L67RP_anne$PRO <- as.factor(L67RP_anne$PRO)
+L67RP_anne$REG <- as.factor(L67RP_anne$REG)
+
+# EDA: REG-spec genes
+#######################################
+genes <- L67RP_anne %>% 
+  filter(GT %in% c('0/1', '1/2')) %>% 
+  filter(PRO != REG)%>% 
+  dplyr::select(SYMBOL) %>% table() %>% sort() %>% names() %>% as.character()
+
+write.table(genes, file = './data/REG-mut-genes_steep.txt', sep = '\n', quote = FALSE, row.names = FALSE)
+########################################
 
 # Genes of Interest
 ############################
